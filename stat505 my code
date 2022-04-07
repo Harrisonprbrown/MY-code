@@ -1,0 +1,158 @@
+#Stat 505 Question 1 
+rm(list=ls())
+
+#setting up libraries and reading file
+library(aTSA)
+library(lmtest)
+library(readxl)
+ggtemp <- read_excel("ggtemp.xlsx")
+
+
+#plot ts for untransformed
+meantemp=ts(data=ggtemp,frequency=1,start=c(1880,1))
+par(mfrow=c(1,1))
+plot.ts (meantemp,main="Global Mean land-ocean temperature deviations (1880-2009)",ylab="Temperature deviations", xlab="Year")
+
+#acf and pacf for untransformed time-series
+acf(meantemp,lag.max=130, main="Series meantemp.ts", ylab="ACF",xlab="Lag")
+pacf(meantemp,lag.max=130, main="Series meantemp.ts", ylab="PACF",xlab="Lag")
+
+#plotting transformed time=series (degree of differencing is d=1)
+notrend.meantemp=diff(meantemp,lag=1)
+plot.ts (notrend.meantemp,main="(1-B) Global Mean land-ocean temperature deviations (1880-2009)",ylab="Temperature deviations", xlab="Year")
+
+#acf and pacf for transformed time-series
+acf(notrend.meantemp, main="Series notrend.meantemp.ts", lag.max=130,ylab="ACF",xlab="Lag")
+pacf(notrend.meantemp, main="Series notrend.meantemp.ts", lag.max=130,ylab="PACF",xlab="Lag")
+
+#adf test for transformed time-series
+adf.test(notrend.meantemp)
+
+#AIC BIC test for transformed
+AIC1=BIC1=matrix(0,4,4)
+for (i in 1:4){for(j in 1:4){
+  fit=arima(notrend.meantemp,order=c(i-1,0,j-1))
+  AIC1[i,j]=AIC(fit)
+  BIC1[i,j]=BIC(fit)}}
+AIC1
+BIC1
+minA=which(AIC1==min(AIC1),arr.ind=T)
+minA
+minB=which(BIC1==min(BIC1), arr.ind=T)
+minB
+
+#check coefficient if theyre significant
+arimafit1=arima(notrend.meantemp,order=c(1,0,3))
+coeftest(arimafit1) #last coefficient is significant for both AR and MA so this is a good model fit
+
+#analyze residuals
+tsdiag(arimafit1) 
+#residuals appear randomly distributed, ACF plot of residuals appears good, and p-values for Ljung-Box statistic are 
+# all above the p=0.05 line
+
+#forecast of the transformed data for next 10 years
+forecastfit=forecast(arimafit1, lead=10)
+
+
+
+
+
+#Question 2
+
+rm(list=ls())
+
+#setting up libraries and reading file
+library(aTSA)
+library(lmtest)
+library(readxl)
+jj <- read_excel("jj.xlsx")
+
+
+#plot the time series of observed earning and log-earning
+x=ts(data=jj, frequency=4, start=c(1960,1), end=c(1980,4))
+plot.ts(x,main="Earnings Series",lwd=1, xlab="Year", ylab="Earnings per Share ($)")
+
+##plotting the times series of observed log-transformed data
+plot(log(x), main="Log-Earning Series", xlab="Year", ylab="log-Earnings per Share ($)")
+
+#plotting the ACF of observed log-data
+acf(log(x), main="Log-Earning Series")
+
+#pacf of log-data
+pacf(log(x), main="Log-Earning Series")
+
+
+#plot the time series(1-B)(1-B^4)Xt, Xt is log-data
+#we differenced the time series first and then apply the seasonal differencing of lag 4 to stabilize the overall 
+# variation and beacuse there were no strong seasonal patterns
+difx=diff(log(x))
+lagdifx=diff(difx,lag=4)
+lagdifx
+plot.ts(lagdifx,main="the difference series (1-B)(1-B^4)Xt", ylab="Chang in Earnings Per Share from previous quarter ($)", 
+        xlab="year")
+
+
+#ACF
+acf(lagdifx, main="the difference series (1-B)(1-B^4)Xt",xlab="Lag")
+#PACF
+pacf(lagdifx, main="the difference series (1-B)(1-B^4)Xt", xlab="Lag")
+#according to ACF and PACF we have ARMA(1,1,1)(1,1,0)[s=4] and ARMA(1,1,7)(1,1,0)[s=4] are significant
+
+#Fit the possible models and check the residuals of each model. Note that if the last coefficient in the AR or MA 
+# part is not significant, then the model is not valid. If you select multiple valid models, use criteria 
+# information to select the best mode
+
+AIC1=BIC1=matrix(0,9,9)
+for (i in 1:9){for(j in 1:9){
+  fit=arima(lagdifx, order=c(i-1,0,j-1))
+  AIC1[i,j]=AIC(fit)
+  BIC1[i,j]=BIC(fit)}}
+AIC1
+BIC1
+minA=which(AIC1==min(AIC1),arr.ind=T)
+minA
+minB=which(BIC1==min(BIC1), arr.ind=T)
+minB
+#ARIMA (0,1,1) and (4,1,5) are significant according to AIC and BIC
+
+
+#calculating and comparing AIC and BIC 
+##arima(4,1,1)
+fit411<-arima(lagdifx,order=c(4,1,1), season=list(order=c(0,1,0),period=4))
+coeftest(fit411)
+AIC(fit411)#-81.60457
+BIC(fit411)#-67.78018
+##arima(4,1,7)
+fit417<-arima(lagdifx,order=c(4,1,7), season=list(order=c(0,1,0),period=4)) 
+coeftest(fit417)
+AIC(fit417)#-107.4566
+BIC(fit417)#-79.80782
+#arima(0,1,1)
+fit011<-arima(lagdifx, order=c(0,1,1), season=list(order=c(0,1,0), period=4))
+coeftest(fit011)
+AIC(fit011) #-82.75634
+BIC(fit011) #-73.54008
+fit415<-arima(lagdifx, order=c(4,1,5), season=list(order=c(0,1,0),period=4))
+coeftest(fit415)
+AIC(fit415) #-107.9029
+BIC(fit415) #-84.86224
+#lowest AIC and BIC values so we will take a look at residuals
+
+
+
+tsdiag(fit411)
+#Residuals don't look good
+tsdiag(fit011)
+#residuals don't look good here either
+tsdiag(fit417)
+#Also bad
+tsdiag(fit415)
+#residuals for this look good though
+
+
+#forecast the model next 4 quarters
+forecastfit = forecast(fit415,lead=4)
+forecastfit2 = forecast(fit417,lead=4)
+
+
+
