@@ -1,11 +1,11 @@
-#Stat 505 Question 1 
+#Stat 505 Question 1
 rm(list=ls())
 
 #setting up libraries and reading file
 library(aTSA)
 library(lmtest)
 library(readxl)
-ggtemp <- read_excel("R/gtemp.xlsx")
+ggtemp <- read_excel("ggtemp.xlsx")
 
 
 #plot ts for untransformed
@@ -42,17 +42,30 @@ minB=which(BIC1==min(BIC1), arr.ind=T)
 minB
 
 #check coefficient if theyre significant
-arimafit1=arima(notrend.meantemp,order=c(1,0,3))
+arimafit1=arima(notrend.meantemp,order=c(0,0,2))
 coeftest(arimafit1) #last coefficient is significant for both AR and MA so this is a good model fit
+
+arimafit2=arima(notrend.meantemp, order=c(1,0,3))
+coeftest(arimafit2) #same results as above so we must analyze the residuals of both models
+
 
 #analyze residuals
 tsdiag(arimafit1) 
 #residuals appear randomly distributed, ACF plot of residuals appears good, and p-values for Ljung-Box statistic are 
 # all above the p=0.05 line
 
+tsdiag(arimafit2)
+#Results are similar to the above but have a better looking Ljung-Box plot because the dots are further away from
+# the dotted line
+
 #forecast of the transformed data for next 10 years
-forecastfit=forecast(arimafit1, lead=10)
+forecastfit=forecast(arimafit2, lead=10)
 forecastfit
+
+
+
+
+
 
 
 
@@ -180,3 +193,5 @@ tsdiag(fit203)
 #forecast the model next 4 quarters
 forecastfit= forecast(fit203, lead = 4)
 forecastfit
+
+
